@@ -137,43 +137,103 @@ CURSOR  C_CENTRO IS
 	SELECT C.NOMB_CE Centro, E.NOMB_EM Director, C.POBLAC_CE Poblacion
 	FROM CENTROS C, EMPLEADOS E 
 	WHERE C.DIRECTOR_CE = E.COD_EM
-	AND C.COD_CE = 10 ;
+	AND C.COD_CE = P_COD_CENTRO ;
 	VAR_CENTRO C_CENTRO%ROWTYPE;
 CURSOR C_DEPART(VAR_COD NUMBER) IS
 	SELECT DEPT_EM,NOMB_DE,NOMB_EM
 	FROM EMPLEADOS, DEPARTAMENTOS
-	WHERE DEPT_EM = COD_DE AND CENTRO_DE = 10 AND DIRECTOR_DE = COD_EM
+	WHERE DEPT_EM = COD_DE AND CENTRO_DE = VAR_COD AND DIRECTOR_DE = COD_EM
 	GROUP BY DEPT_EM,NOMB_DE,NOMB_EM;
+	VAR_MASA NUMBER;
 BEGIN
 	OPEN C_CENTRO;
 		FETCH C_CENTRO INTO VAR_CENTRO;
 		DBMS_OUTPUT.PUT_LINE(VAR_CENTRO.CENTRO ||'        '|| VAR_CENTRO.DIRECTOR ||'        '|| VAR_CENTRO.POBLACION);
 	CLOSE C_CENTRO;
-	OPEN C_DEPART(P_COD_CENTRO);
-		FOR I IN C_DEPART LOOP
-			SELECT NOMB_DE 
-			FROM DEPARTAMENTOS
-			WHERE 
-	
+	FOR I IN C_DEPART(P_COD_CENTRO) LOOP
+		SELECT SUM(SALARIO_EM)
+		INTO VAR_MASA
+		FROM EMPLEADOS
+		WHERE DEPT_EM = I.DEPT_EM
+		GROUP BY DEPT_EM;
+		DBMS_OUTPUT.PUT_LINE(I.DEPT_EM ||'        '|| I.NOMB_DE ||'        '|| I.NOMB_EM ||'        '|| VAR_MASA);
+	END LOOP;
 END;
 /
 
 
 Resultado:
-
+Direccion        Del Junco Suarez, Malvina                  Madrid
+200        Informatica        Del Junco Suarez, Malvina                  23600000
+300        Investigacion        Calderon Diaz, Daniel                      18000000
 ------------------------------------------------------------------------
 3.- Diseña el procedimiento "Listar" que haga un listado de los datos de todos los centros con la estructura del listado anterior.
 
 
 Código:
+CREATE OR REPLACE PROCEDURE PR_ListarCentro IS
+CURSOR C_CODIGOS IS
+	SELECT COD_CE
+	FROM CENTROS;
+CURSOR  C_CENTRO(VAR_CENTRO NUMBER)IS
+	SELECT C.NOMB_CE Centro, E.NOMB_EM Director, C.POBLAC_CE Poblacion
+	FROM CENTROS C, EMPLEADOS E 
+	WHERE C.DIRECTOR_CE = E.COD_EM
+	AND C.COD_CE = 10 ;
+	VAR_CENTRO C_CENTRO%ROWTYPE   ;
+CURSOR C_DEPART(VAR_COD NUMBER) IS
+	SELECT DEPT_EM,NOMB_DE,NOMB_EM
+	FROM EMPLEADOS, DEPARTAMENTOS
+	WHERE DEPT_EM = COD_DE AND CENTRO_DE = VAR_COD AND DIRECTOR_DE = COD_EM
+	GROUP BY DEPT_EM,NOMB_DE,NOMB_EM;
+	VAR_MASA NUMBER;
+BEGIN
+	FOR A IN C_CODIGOS LOOP
+		OPEN C_CENTRO(A.COD_CE);
+			FETCH C_CENTRO INTO VAR_CENTRO USING (A.COD_CE);
+			DBMS_OUTPUT.PUT_LINE(VAR_CENTRO.CENTRO ||'        '|| VAR_CENTRO.DIRECTOR ||'        '|| VAR_CENTRO.POBLACION);
+		CLOSE C_CENTRO;
+		FOR I IN C_DEPART(A.COD_CE) LOOP
+			SELECT SUM(SALARIO_EM)
+			INTO VAR_MASA
+			FROM EMPLEADOS
+			WHERE DEPT_EM = I.DEPT_EM
+			GROUP BY DEPT_EM;
+			DBMS_OUTPUT.PUT_LINE(I.DEPT_EM ||'        '|| I.NOMB_DE ||'        '|| I.NOMB_EM ||'        '|| VAR_MASA);
+		END LOOP;
+	END LOOP;
+END;
+/
 
 Resultado:
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
 4.- Crea la función "Aniversario" que se le pase como parámetro una fecha y que devuelva TRUE o FALSE si hoy fuera el aniversario algo que ocurrió en esa fecha.
+CREATE OR REPLACE FUNCTION Aniversario(
+	VAR_FECHA IN DATE ) RETURN BOOLEAN IS 
+BEGIN 
+	IF TO_CHAR(VAR_FECHA, 'dd') = TO_CHAR(SYSDATE, 'dd')
+	THEN  RETURN true;
+	ELSE RETURN false;
+	END IF;
 
+EXCEPTION 
+WHEN NO_DATA_FOUND THEN 
+	DBMS_OUTPUT.PUT_LINE('CAMPO VACIDO ');
+END;
+/
+	
 Código:
 
+
+BEGIN
+	if Aniversario('')= true then DBMS_OUTPUT.PUT_LINE('TRUE');
+	end if;
+END;
+/
+
+select TO_CHAR(SYSDATE, 'mm')
+from empleados;
 ------------------------------------------------------------------------
 5.- Diseña el procedimiento "ListarAniversario" que genere un listado en el que se vea cada empleado con su fecha de incorporación a la empresa indicando "Aniversario" a aquellos empleados  que hoy sea el aniversario de su incorporación a la empresa, indicando el total de personas que lo cumplen.
 
@@ -187,4 +247,17 @@ Código:
 
 Código:
 
+CREATE OR REPLACE PROCEDURE ListarAniversario IS 
+CURSOR C_DATES IS 
+SELECT NOMB_EM,FECINC_EM
+FROM EMPLEADOS;
+BEGIN 
+	FOR I IN C_DATES LOOP
+		IF TO_CHAR(I.FECINC_EM,'MM')= TO_CHAR(SYSDATE,'MM') AND TO_CHAR(I.FECINC_EM,'DD') = TO_CHAR(SYSDATE,'DD')
+		THEN DBMS_OUTPUT.PUT_LINE(I.NOMB_EM || '  ' || I.FECINC_EM || '  ' || 'Aniversario');
+		ELSE DBMS_OUTPUT.PUT_LINE(I.NOMB_EM || '  ' || I.FECINC_EM );
+		END IF;
+	END LOOP;
+END;
+/
 Resultado:
